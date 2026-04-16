@@ -1,0 +1,33 @@
+[project]
+name = "clio-mcp-server"
+version = "0.1.0"
+description = "MCP server exposing Clio practice management API as tools for AI assistants"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+authors = [{ name = "Tom" }]
+dependencies = [
+    "fastmcp",
+    "httpx",
+    "pydantic>=2.0",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+eval = [
+    "anthropic",
+    "pyyaml",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
