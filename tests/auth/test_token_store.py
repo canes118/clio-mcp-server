@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import stat
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -19,7 +19,7 @@ def valid_tokens() -> ClioTokens:
         access_token="access_abc",
         refresh_token="refresh_xyz",
         token_type="bearer",
-        expires_at=datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+        expires_at=datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC),
     )
 
 
@@ -52,9 +52,7 @@ class TestLoad:
 
 
 class TestSave:
-    def test_round_trip(
-        self, store: FileTokenStore, valid_tokens: ClioTokens
-    ) -> None:
+    def test_round_trip(self, store: FileTokenStore, valid_tokens: ClioTokens) -> None:
         store.save(valid_tokens)
         loaded = store.load()
         assert loaded is not None
@@ -95,7 +93,9 @@ class TestSave:
     ) -> None:
         import os as _os
 
-        monkeypatch.setattr(_os, "replace", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("boom")))
+        monkeypatch.setattr(
+            _os, "replace", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("boom"))
+        )
         with pytest.raises(RuntimeError, match="boom"):
             store.save(valid_tokens)
         files = list(store.path.parent.iterdir())

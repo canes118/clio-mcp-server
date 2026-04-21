@@ -29,7 +29,7 @@ _SUCCESS_HTML = """\
 class _CallbackHandler(BaseHTTPRequestHandler):
     """One-shot HTTP handler that captures the OAuth callback."""
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         qs = parse_qs(urlparse(self.path).query)
         code = qs.get("code", [None])[0]  # type: ignore[list-item]
         state = qs.get("state", [None])[0]  # type: ignore[list-item]
@@ -44,7 +44,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 
         self.server.callback_event.set()  # type: ignore[attr-defined]
 
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: object) -> None:
         # Suppress default stderr logging
         pass
 

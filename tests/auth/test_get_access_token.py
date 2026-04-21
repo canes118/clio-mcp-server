@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -40,9 +40,9 @@ def config() -> ClioConfig:
 
 def _make_tokens(*, expired: bool = False) -> ClioTokens:
     if expired:
-        expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        expires_at = datetime.now(UTC) - timedelta(hours=1)
     else:
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        expires_at = datetime.now(UTC) + timedelta(hours=1)
     return ClioTokens(
         access_token="access-123",
         refresh_token="refresh-456",
@@ -54,7 +54,7 @@ def _make_refreshed_tokens() -> ClioTokens:
     return ClioTokens(
         access_token="access-refreshed",
         refresh_token="refresh-789",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
     )
 
 

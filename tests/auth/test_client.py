@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -45,7 +45,7 @@ def existing_tokens() -> ClioTokens:
         access_token="old-access-token",
         refresh_token="old-refresh-token",
         token_type="bearer",
-        expires_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        expires_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
@@ -103,9 +103,7 @@ class TestExchangeCode:
         assert tokens.refresh_token == "new-refresh-token"
 
     @respx.mock
-    async def test_raises_on_400_response(
-        self, auth_client: ClioAuthClient
-    ) -> None:
+    async def test_raises_on_400_response(self, auth_client: ClioAuthClient) -> None:
         respx.post("https://app.clio.com/oauth/token").mock(
             return_value=httpx.Response(400, text="invalid_grant")
         )

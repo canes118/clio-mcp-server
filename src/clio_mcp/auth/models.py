@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, SecretStr, computed_field, field_validator
 
@@ -83,9 +83,7 @@ class ClioTokens(BaseModel):
                 "No refresh_token in response and no previous token to fall back to"
             )
 
-        expires_at = datetime.now(timezone.utc) + timedelta(
-            seconds=response_data["expires_in"]
-        )
+        expires_at = datetime.now(UTC) + timedelta(seconds=response_data["expires_in"])
 
         return cls(
             access_token=response_data["access_token"],
@@ -96,6 +94,4 @@ class ClioTokens(BaseModel):
 
     def is_expired(self, buffer_seconds: int = 300) -> bool:
         """Return True if the token expires within buffer_seconds from now."""
-        return self.expires_at <= datetime.now(timezone.utc) + timedelta(
-            seconds=buffer_seconds
-        )
+        return self.expires_at <= datetime.now(UTC) + timedelta(seconds=buffer_seconds)

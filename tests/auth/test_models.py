@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -68,7 +68,7 @@ class TestClioTokensFromTokenResponse:
         previous = ClioTokens(
             access_token="old_access",
             refresh_token="old_refresh",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         response = {
             "access_token": "new_access",
@@ -95,7 +95,7 @@ class TestClioTokensIsExpired:
         tokens = ClioTokens(
             access_token="a",
             refresh_token="r",
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
         )
         assert tokens.is_expired() is True
 
@@ -103,7 +103,7 @@ class TestClioTokensIsExpired:
         tokens = ClioTokens(
             access_token="a",
             refresh_token="r",
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=60),
+            expires_at=datetime.now(UTC) + timedelta(seconds=60),
         )
         assert tokens.is_expired(buffer_seconds=300) is True
 
@@ -111,6 +111,6 @@ class TestClioTokensIsExpired:
         tokens = ClioTokens(
             access_token="a",
             refresh_token="r",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            expires_at=datetime.now(UTC) + timedelta(hours=2),
         )
         assert tokens.is_expired() is False
