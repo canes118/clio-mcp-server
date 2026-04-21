@@ -35,6 +35,12 @@ assistants. Built with FastMCP. Local stdio transport only.
 - Tests mirror the src structure: `tests/test_tools/test_matters.py`
   tests `src/clio_mcp/tools/matters.py`.
 
+## Commits
+
+- Conventional Commits format: `feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`. Scope in parens where useful: `feat(matters): add search_matters tool`.
+- Run `uv run pytest` before every commit. Do not commit on red.
+- No Claude co-author trailer. Do not append `Co-Authored-By: Claude <noreply@anthropic.com>` or any similar trailer. Commits are authored by you only.
+
 ## Do not
 
 - Do not add LangGraph, LangChain, or any agent framework. This is a
@@ -49,6 +55,7 @@ assistants. Built with FastMCP. Local stdio transport only.
 ## Running
 
 ```bash
+uv run pre-commit install --hook-type pre-commit --hook-type commit-msg  # first-time setup
 uv run python -m clio_mcp.server        # start server (stdio)
 uv run pytest                            # run tests
 uv run python evals/eval_runner.py       # run eval harness

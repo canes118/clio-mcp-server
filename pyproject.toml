@@ -39,8 +39,10 @@ target-version = "py313"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = ["src"]
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.5.1",
     "respx>=0.23.1",
 ]

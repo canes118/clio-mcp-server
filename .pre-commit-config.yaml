@@ -1,0 +1,31 @@
+repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest (uv run pytest)
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: conventional-commit
+        name: Conventional Commits format
+        language: system
+        stages: [commit-msg]
+        entry: |
+          bash -c '
+          msg_file="$1"
+          first_line=$(head -n1 "$msg_file")
+          pattern="^(feat|fix|refactor|test|chore|docs)(\([^)]+\))?!?: .+"
+          if [[ ! "$first_line" =~ $pattern ]]; then
+            echo "Commit message does not match Conventional Commits format." >&2
+            echo "" >&2
+            echo "Expected: <type>(<scope>)?: <subject>" >&2
+            echo "Types:    feat, fix, refactor, test, chore, docs" >&2
+            echo "Example:  feat(matters): add search_matters tool" >&2
+            echo "" >&2
+            echo "Got:      $first_line" >&2
+            exit 1
+          fi
+          ' --
