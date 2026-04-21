@@ -29,6 +29,12 @@ def main() -> None:
         default=8765,
         help="Local port for the OAuth callback server (default: 8765)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=300.0,
+        help="Seconds to wait for the OAuth callback (default: 300)",
+    )
     args = parser.parse_args()
 
     try:
@@ -46,7 +52,9 @@ def main() -> None:
     client = ClioAuthClient(config)
 
     try:
-        asyncio.run(bootstrap(config, store, client, port=args.port))
+        asyncio.run(
+            bootstrap(config, store, client, port=args.port, timeout=args.timeout)
+        )
     except ClioAuthError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)

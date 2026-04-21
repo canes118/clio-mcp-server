@@ -49,12 +49,6 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def _run_server(server: HTTPServer, event: threading.Event) -> None:
-    """Serve until the callback event is set."""
-    while not event.is_set():
-        server.handle_request()
-
-
 async def bootstrap(
     config: ClioConfig,
     store: TokenStore,
@@ -78,9 +72,7 @@ async def bootstrap(
     server.callback_state = None  # type: ignore[attr-defined]
     server.callback_event = event  # type: ignore[attr-defined]
 
-    server_thread = threading.Thread(
-        target=_run_server, args=(server, event), daemon=True
-    )
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
 
     try:
