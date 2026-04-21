@@ -14,6 +14,9 @@ dependencies = [
     "python-dotenv",
 ]
 
+[project.scripts]
+clio-mcp = "clio_mcp.server:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest",
