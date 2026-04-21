@@ -7,3 +7,4 @@ evals/results/
 dist/
 *.egg-info/
 .venv/
+.DS_Store
