@@ -9,6 +9,8 @@ import argparse
 import asyncio
 import sys
 
+from dotenv import load_dotenv
+
 from clio_mcp.auth.bootstrap import bootstrap
 from clio_mcp.auth.client import ClioAuthClient
 from clio_mcp.auth.exceptions import ClioAuthError
@@ -17,6 +19,7 @@ from clio_mcp.auth.token_store import FileTokenStore
 
 
 def main() -> None:
+    load_dotenv()
     parser = argparse.ArgumentParser(
         description="Authorize Clio MCP server via OAuth2 browser flow."
     )
