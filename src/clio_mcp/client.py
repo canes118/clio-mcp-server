@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 
 from clio_mcp.auth import get_access_token
@@ -31,28 +33,34 @@ class ClioClient:
         self._auth_client = auth_client or ClioAuthClient(config)
 
     async def get_matter(self, matter_id: int) -> Matter:
-        url = f"{self.config.api_base}/matters/{matter_id}.json"
-        headers = await self._authorized_headers()
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url, headers=headers)
-
-        self._raise_for_status(response)
-        return Matter.model_validate(response.json()["data"])
+        payload = await self._request("GET", f"/matters/{matter_id}.json")
+        return Matter.model_validate(payload["data"])
 
     async def search_matters(self, query: str, limit: int = 25) -> list[Matter]:
-        url = f"{self.config.api_base}/matters.json"
+        payload = await self._request(
+            "GET",
+            "/matters.json",
+            params={"query": query, "limit": limit},
+        )
+        return [Matter.model_validate(item) for item in payload["data"]]
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        url = f"{self.config.api_base}{path}"
         headers = await self._authorized_headers()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                url,
-                headers=headers,
-                params={"query": query, "limit": limit},
+            response = await client.request(
+                method, url, headers=headers, params=params
             )
 
         self._raise_for_status(response)
-        return [Matter.model_validate(item) for item in response.json()["data"]]
+        return response.json()
 
     async def _authorized_headers(self) -> dict[str, str]:
         token = await get_access_token(
