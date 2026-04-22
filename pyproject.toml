@@ -18,11 +18,6 @@ dependencies = [
 clio-mcp = "clio_mcp.server:main"
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-asyncio",
-    "ruff",
-]
 eval = [
     "anthropic",
     "pyyaml",

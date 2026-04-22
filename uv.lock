@@ -198,11 +198,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
 eval = [
     { name = "anthropic" },
     { name = "pyyaml" },
@@ -224,13 +219,10 @@ requires-dist = [
     { name = "httpx" },
     { name = "platformdirs", specifier = ">=4.9.6" },
     { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
     { name = "pyyaml", marker = "extra == 'eval'" },
-    { name = "ruff", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev", "eval"]
+provides-extras = ["eval"]
 
 [package.metadata.requires-dev]
 dev = [
