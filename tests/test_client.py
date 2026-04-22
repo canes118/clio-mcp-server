@@ -15,7 +15,7 @@ from clio_mcp.auth.models import ClioConfig, ClioTokens
 from clio_mcp.auth.token_store import TokenStore
 from clio_mcp.client import ClioClient
 from clio_mcp.exceptions import ClioAPIError, ClioNotFoundError
-from clio_mcp.models import Matter
+from clio_mcp.models import ContactCompany, ContactPerson, Matter
 
 MATTER_PAYLOAD = {
     "id": 123,
@@ -24,6 +24,22 @@ MATTER_PAYLOAD = {
     "status": "Open",
     "client": {"id": 42, "name": "Smith, John"},
     "practice_area": {"id": 7, "name": "Litigation"},
+}
+
+PERSON_PAYLOAD = {
+    "id": 501,
+    "type": "Person",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "primary_email_address": "jane@example.com",
+    "primary_phone_number": "555-0101",
+}
+
+COMPANY_PAYLOAD = {
+    "id": 502,
+    "type": "Company",
+    "name": "Acme LLC",
+    "primary_phone_number": "555-0100",
 }
 
 
@@ -114,6 +130,85 @@ class TestSearchMatters:
         request = route.calls[0].request
         assert request.url.params["query"] == "Smith"
         assert request.url.params["limit"] == "10"
+
+
+class TestGetContact:
+    @respx.mock
+    async def test_returns_parsed_person(self, client: ClioClient) -> None:
+        route = respx.get("https://app.clio.com/api/v4/contacts/501.json").mock(
+            return_value=httpx.Response(200, json={"data": PERSON_PAYLOAD})
+        )
+
+        contact = await client.get_contact(501)
+
+        assert isinstance(contact, ContactPerson)
+        assert contact.id == 501
+        assert contact.first_name == "Jane"
+        assert contact.last_name == "Smith"
+        assert contact.primary_email_address == "jane@example.com"
+
+        sent_auth = route.calls[0].request.headers["Authorization"]
+        assert sent_auth == "Bearer fake-access-token"
+
+    @respx.mock
+    async def test_returns_parsed_company(self, client: ClioClient) -> None:
+        respx.get("https://app.clio.com/api/v4/contacts/502.json").mock(
+            return_value=httpx.Response(200, json={"data": COMPANY_PAYLOAD})
+        )
+
+        contact = await client.get_contact(502)
+
+        assert isinstance(contact, ContactCompany)
+        assert contact.id == 502
+        assert contact.name == "Acme LLC"
+
+    @respx.mock
+    async def test_raises_not_found_on_404(self, client: ClioClient) -> None:
+        respx.get("https://app.clio.com/api/v4/contacts/999.json").mock(
+            return_value=httpx.Response(404, text='{"error":"not found"}')
+        )
+
+        with pytest.raises(ClioNotFoundError) as exc_info:
+            await client.get_contact(999)
+
+        assert exc_info.value.status_code == 404
+
+
+class TestSearchContacts:
+    @respx.mock
+    async def test_returns_mixed_list(self, client: ClioClient) -> None:
+        route = respx.get("https://app.clio.com/api/v4/contacts.json").mock(
+            return_value=httpx.Response(
+                200, json={"data": [PERSON_PAYLOAD, COMPANY_PAYLOAD]}
+            )
+        )
+
+        contacts = await client.search_contacts("Smith", limit=10)
+
+        assert len(contacts) == 2
+        assert isinstance(contacts[0], ContactPerson)
+        assert isinstance(contacts[1], ContactCompany)
+
+        request = route.calls[0].request
+        assert request.url.params["query"] == "Smith"
+        assert request.url.params["limit"] == "10"
+        assert "type" not in request.url.params
+
+    @respx.mock
+    async def test_passes_type_filter(self, client: ClioClient) -> None:
+        route = respx.get("https://app.clio.com/api/v4/contacts.json").mock(
+            return_value=httpx.Response(200, json={"data": [COMPANY_PAYLOAD]})
+        )
+
+        contacts = await client.search_contacts("Acme", type="Company", limit=5)
+
+        assert len(contacts) == 1
+        assert isinstance(contacts[0], ContactCompany)
+
+        request = route.calls[0].request
+        assert request.url.params["query"] == "Acme"
+        assert request.url.params["type"] == "Company"
+        assert request.url.params["limit"] == "5"
 
 
 class InMemoryTokenStore(TokenStore):
