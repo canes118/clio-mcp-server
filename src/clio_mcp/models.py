@@ -7,7 +7,7 @@ schema.
 """
 
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -59,20 +59,42 @@ class Matter(ClioEntity):
     updated_at: datetime | None = None
 
 
-class Contact(ClioEntity):
-    """A person or organization in Clio's address book. Contacts may be
-    clients on matters, opposing parties, vendors, or unrelated third
-    parties; the type field distinguishes Person vs. Company.
+class ContactBase(ClioEntity):
+    """Fields common to every contact, regardless of Person vs. Company.
+
+    Not instantiated directly — use ContactPerson or ContactCompany, or
+    the Contact discriminated union that resolves between them on the
+    type field.
     """
 
     id: int
-    name: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    type: str | None = None
-    title: str | None = None
-    email: str | None = Field(None, alias="primary_email_address")
-    phone: str | None = Field(None, alias="primary_phone_number")
-    company: ClioRef = Field(default_factory=ClioRef)
+    primary_email_address: str | None = None
+    primary_phone_number: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class ContactPerson(ContactBase):
+    """An individual person in Clio's address book — a client, opposing
+    party, witness, vendor contact, or other named individual.
+    """
+
+    type: Literal["Person"]
+    first_name: str | None = None
+    last_name: str | None = None
+    prefix: str | None = None
+    middle_name: str | None = None
+    suffix: str | None = None
+    date_of_birth: date | None = None
+
+
+class ContactCompany(ContactBase):
+    """An organization in Clio's address book — a corporate client,
+    opposing firm, vendor, or other entity.
+    """
+
+    type: Literal["Company"]
+    name: str | None = None
+
+
+Contact = Annotated[ContactPerson | ContactCompany, Field(discriminator="type")]

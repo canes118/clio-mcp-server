@@ -1,6 +1,10 @@
 from datetime import date, datetime
 
-from clio_mcp.models import Contact, Matter
+from pydantic import TypeAdapter
+
+from clio_mcp.models import Contact, ContactCompany, ContactPerson, Matter
+
+_contact_adapter: TypeAdapter[Contact] = TypeAdapter(Contact)
 
 
 def test_matter_parses_realistic_payload() -> None:
@@ -29,11 +33,34 @@ def test_matter_with_none_client_parses_cleanly() -> None:
     assert matter.client.name is None
 
 
-def test_contact_email_alias() -> None:
-    contact = Contact.model_validate(
-        {"id": 99, "primary_email_address": "jane@example.com"}
+def test_contact_person_parses_with_discriminator() -> None:
+    contact = _contact_adapter.validate_python(
+        {
+            "id": 99,
+            "type": "Person",
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "primary_email_address": "jane@example.com",
+        }
     )
-    assert contact.email == "jane@example.com"
+    assert isinstance(contact, ContactPerson)
+    assert contact.first_name == "Jane"
+    assert contact.last_name == "Smith"
+    assert contact.primary_email_address == "jane@example.com"
+
+
+def test_contact_company_parses_with_discriminator() -> None:
+    contact = _contact_adapter.validate_python(
+        {
+            "id": 17,
+            "type": "Company",
+            "name": "Acme LLC",
+            "primary_phone_number": "555-0100",
+        }
+    )
+    assert isinstance(contact, ContactCompany)
+    assert contact.name == "Acme LLC"
+    assert contact.primary_phone_number == "555-0100"
 
 
 def test_matter_tolerates_unknown_fields() -> None:
