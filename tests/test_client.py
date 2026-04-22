@@ -13,7 +13,7 @@ import respx
 from clio_mcp.auth.client import ClioAuthClient
 from clio_mcp.auth.models import ClioConfig, ClioTokens
 from clio_mcp.auth.token_store import TokenStore
-from clio_mcp.client import ClioClient
+from clio_mcp.client import CONTACT_FIELDS, MATTER_FIELDS, ClioClient
 from clio_mcp.exceptions import ClioAPIError, ClioNotFoundError
 from clio_mcp.models import ContactCompany, ContactPerson, Matter
 
@@ -130,6 +130,33 @@ class TestSearchMatters:
         request = route.calls[0].request
         assert request.url.params["query"] == "Smith"
         assert request.url.params["limit"] == "10"
+        assert request.url.params["fields"] == MATTER_FIELDS
+
+    @respx.mock
+    async def test_parses_nested_refs_from_expanded_payload(
+        self, client: ClioClient
+    ) -> None:
+        expanded = {
+            **MATTER_PAYLOAD,
+            "responsible_attorney": {"id": 11, "name": "Attorney A"},
+            "originating_attorney": {"id": 12, "name": "Attorney B"},
+        }
+        respx.get("https://app.clio.com/api/v4/matters.json").mock(
+            return_value=httpx.Response(200, json={"data": [expanded]})
+        )
+
+        matters = await client.search_matters("Smith")
+
+        assert len(matters) == 1
+        matter = matters[0]
+        assert matter.client.id == 42
+        assert matter.client.name == "Smith, John"
+        assert matter.practice_area.id == 7
+        assert matter.practice_area.name == "Litigation"
+        assert matter.responsible_attorney.id == 11
+        assert matter.responsible_attorney.name == "Attorney A"
+        assert matter.originating_attorney.id == 12
+        assert matter.originating_attorney.name == "Attorney B"
 
 
 class TestGetContact:
@@ -192,6 +219,7 @@ class TestSearchContacts:
         request = route.calls[0].request
         assert request.url.params["query"] == "Smith"
         assert request.url.params["limit"] == "10"
+        assert request.url.params["fields"] == CONTACT_FIELDS
         assert "type" not in request.url.params
 
     @respx.mock
@@ -209,6 +237,38 @@ class TestSearchContacts:
         assert request.url.params["query"] == "Acme"
         assert request.url.params["type"] == "Company"
         assert request.url.params["limit"] == "5"
+        assert request.url.params["fields"] == CONTACT_FIELDS
+
+    @respx.mock
+    async def test_parses_populated_person_and_company_fields(
+        self, client: ClioClient
+    ) -> None:
+        populated_person = {
+            **PERSON_PAYLOAD,
+            "prefix": "Dr.",
+            "middle_name": "Q",
+            "suffix": "Jr.",
+            "date_of_birth": "1980-05-01",
+        }
+        populated_company = {**COMPANY_PAYLOAD, "primary_email_address": "info@acme.example"}
+        respx.get("https://app.clio.com/api/v4/contacts.json").mock(
+            return_value=httpx.Response(
+                200, json={"data": [populated_person, populated_company]}
+            )
+        )
+
+        contacts = await client.search_contacts("Smith")
+
+        person, company = contacts
+        assert isinstance(person, ContactPerson)
+        assert person.prefix == "Dr."
+        assert person.middle_name == "Q"
+        assert person.suffix == "Jr."
+        assert person.date_of_birth is not None
+        assert person.date_of_birth.isoformat() == "1980-05-01"
+        assert isinstance(company, ContactCompany)
+        assert company.name == "Acme LLC"
+        assert company.primary_email_address == "info@acme.example"
 
 
 class InMemoryTokenStore(TokenStore):

@@ -17,6 +17,25 @@ from clio_mcp.models import Contact, Matter
 
 _contact_adapter: TypeAdapter[Contact] = TypeAdapter(Contact)
 
+# Clio list endpoints return minimal payloads by default — nested refs
+# come back as null unless the caller names the fields it wants. These
+# specs mirror what the Matter / Contact models actually declare so the
+# response parses into fully populated objects.
+MATTER_FIELDS = (
+    "id,display_number,description,status,"
+    "open_date,close_date,billable,billing_method,"
+    "created_at,updated_at,"
+    "client{id,name},practice_area{id,name},"
+    "responsible_attorney{id,name},originating_attorney{id,name}"
+)
+
+CONTACT_FIELDS = (
+    "id,type,primary_email_address,primary_phone_number,"
+    "created_at,updated_at,"
+    "first_name,last_name,prefix,middle_name,suffix,date_of_birth,"
+    "name"
+)
+
 
 class ClioClient:
     """Async HTTP wrapper for Clio's main API.
@@ -44,7 +63,7 @@ class ClioClient:
         payload = await self._request(
             "GET",
             "/matters.json",
-            params={"query": query, "limit": limit},
+            params={"query": query, "limit": limit, "fields": MATTER_FIELDS},
         )
         return [Matter.model_validate(item) for item in payload["data"]]
 
@@ -58,7 +77,11 @@ class ClioClient:
         type: str | None = None,
         limit: int = 25,
     ) -> list[Contact]:
-        params: dict[str, Any] = {"query": query, "limit": limit}
+        params: dict[str, Any] = {
+            "query": query,
+            "limit": limit,
+            "fields": CONTACT_FIELDS,
+        }
         if type is not None:
             params["type"] = type
         payload = await self._request("GET", "/contacts.json", params=params)
