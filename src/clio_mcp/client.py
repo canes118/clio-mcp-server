@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+from pydantic import TypeAdapter
 
 from clio_mcp.auth import get_access_token
 from clio_mcp.auth.client import ClioAuthClient
@@ -12,7 +13,9 @@ from clio_mcp.auth.exceptions import ClioTokenNotFoundError
 from clio_mcp.auth.models import ClioConfig
 from clio_mcp.auth.token_store import FileTokenStore, TokenStore
 from clio_mcp.exceptions import ClioAPIError, ClioNotFoundError
-from clio_mcp.models import Matter
+from clio_mcp.models import Contact, Matter
+
+_contact_adapter: TypeAdapter[Contact] = TypeAdapter(Contact)
 
 
 class ClioClient:
@@ -44,6 +47,22 @@ class ClioClient:
             params={"query": query, "limit": limit},
         )
         return [Matter.model_validate(item) for item in payload["data"]]
+
+    async def get_contact(self, contact_id: int) -> Contact:
+        payload = await self._request("GET", f"/contacts/{contact_id}.json")
+        return _contact_adapter.validate_python(payload["data"])
+
+    async def search_contacts(
+        self,
+        query: str,
+        type: str | None = None,
+        limit: int = 25,
+    ) -> list[Contact]:
+        params: dict[str, Any] = {"query": query, "limit": limit}
+        if type is not None:
+            params["type"] = type
+        payload = await self._request("GET", "/contacts.json", params=params)
+        return [_contact_adapter.validate_python(item) for item in payload["data"]]
 
     async def _request(
         self,
