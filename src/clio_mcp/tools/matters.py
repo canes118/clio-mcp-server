@@ -28,9 +28,14 @@ async def get_matter(matter_id: int) -> Matter:
 
 async def search_matters(query: str, limit: int = 25) -> list[Matter]:
     """Search for matters by keyword. Matches against matter numbers,
-    descriptions, and client names. Returns up to limit matters
-    (default 25, max 100). Use this to find matters when you don't have
-    the specific matter ID — for example "all Smith matters" or
-    "contract disputes".
+    descriptions, and client names.
+
+    Pass distinctive terms — a company name, person's last name. 
+    Do not pass full sentences or predicate expressions.
+
+    Good: "Paxos", "Smith"
+    Bad: "all Smith matters", "client name contains Paxos"
+
+    Returns up to limit matters (default 25, max 100).
     """
     return await _get_client().search_matters(query, limit)
