@@ -36,6 +36,9 @@ async def search_matters(query: str, limit: int = 25) -> list[Matter]:
     Good: "Acme", "Smith"
     Bad: "all Smith matters", "client name contains Acme"
 
-    Returns up to limit matters (default 25, max 100).
+    Returns up to limit matters (default 25, max 100). Passing a limit
+    above 100 raises ValueError.
     """
+    if limit > 100:
+        raise ValueError("limit must be 100 or fewer")
     return await _get_client().search_matters(query, limit)
