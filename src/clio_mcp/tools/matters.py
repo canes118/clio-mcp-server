@@ -33,8 +33,8 @@ async def search_matters(query: str, limit: int = 25) -> list[Matter]:
     Pass distinctive terms — a company name, person's last name. 
     Do not pass full sentences or predicate expressions.
 
-    Good: "Paxos", "Smith"
-    Bad: "all Smith matters", "client name contains Paxos"
+    Good: "Acme", "Smith"
+    Bad: "all Smith matters", "client name contains Acme"
 
     Returns up to limit matters (default 25, max 100).
     """
