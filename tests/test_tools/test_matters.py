@@ -39,3 +39,8 @@ async def test_search_matters_delegates_to_client(sample_matter: Matter) -> None
 
     fake_client.search_matters.assert_awaited_once_with("Smith", 10)
     assert result == [sample_matter]
+
+
+async def test_search_matters_rejects_limit_above_100() -> None:
+    with pytest.raises(ValueError, match="100"):
+        await matters.search_matters("Smith", limit=101)
