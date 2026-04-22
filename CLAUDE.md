@@ -52,6 +52,21 @@ assistants. Built with FastMCP. Local stdio transport only.
 - Do not modify files in `evals/` when I ask you to work on tools or
   the client. These are separate concerns.
 
+## Confidentiality in committed artifacts
+
+This repo is public. The following must not appear in any committed file, commit message, PR title, PR body, or issue:
+
+- Real client names, firm names, matter names, or matter display numbers
+- Real contact names (attorneys, staff, opposing counsel)
+- Real IDs that could be linked back to actual Clio records
+- Environment-specific identifiers (sandbox names, workspace names)
+
+In examples, docstrings, tests, and fixtures, use generic placeholders: "Acme", "Smith", "Example LLC". Test data is synthetic.
+
+Before committing, grep the diff for anything that looks like a proper noun you didn't invent. Pre-commit hooks will not catch this — it's a human judgment check.
+
+The smoke-test environment contains real data. Do not paste smoke-test outputs into commits, PRs, or issues.
+
 ## Running
 
 ```bash
