@@ -20,14 +20,13 @@ from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 
-from evals.cases import CaseResult, TestCase, TurnRecord
+from evals.cases import CASES, CaseResult, TestCase, TurnRecord
 
 load_dotenv()
 
 MODEL = "claude-sonnet-4-5"
 MAX_TOKENS = 1024
 MAX_ITERATIONS = 5
-DEFAULT_QUERY = "find matters matching 'Acme'"
 RUNS_DIR = Path(__file__).parent / "runs"
 
 
@@ -241,24 +240,48 @@ def persist_run(
     return path
 
 
+def _print_summary(results: list[CaseResult]) -> None:
+    """Print a plain-text summary table for a list of scored results."""
+    header = (
+        f"{'CASE':<40}{'TOOL':<8}{'ARGS':<8}{'DONE':<8}{'ITER':<8}{'TIME_MS'}"
+    )
+    print(header)
+    for r in results:
+        tool = "PASS" if r.scores.get("tool_match") else "FAIL"
+        args_col = "PASS" if r.scores.get("args_match") else "FAIL"
+        done = "PASS" if r.scores.get("completed") else "FAIL"
+        print(
+            f"{r.case_name:<40}{tool:<8}{args_col:<8}{done:<8}"
+            f"{r.iterations:<8}{r.wall_time_ms:.1f}"
+        )
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Clio MCP eval harness.")
     parser.add_argument(
         "--query",
-        default=DEFAULT_QUERY,
+        default=None,
         help=(
-            "Ad-hoc prompt to send to Claude. Default: "
-            f"{DEFAULT_QUERY!r}. (CASES wiring arrives in a follow-up commit.)"
+            "Ad-hoc prompt override. If omitted, runs the committed CASES "
+            "list from evals/cases.py. Ad-hoc runs cannot satisfy the "
+            "scorer (empty expected_tool) and are intended for exploration."
         ),
     )
     args = parser.parse_args()
 
-    case = TestCase(
-        name="adhoc",
-        query=args.query,
-        expected_tool="",
-        expected_args_subset={},
-    )
+    started_at = datetime.now(timezone.utc)
+
+    if args.query is not None:
+        cases: list[TestCase] = [
+            TestCase(
+                name="adhoc",
+                query=args.query,
+                expected_tool="",
+                expected_args_subset={},
+            )
+        ]
+    else:
+        cases = CASES
 
     server_params = StdioServerParameters(
         command=sys.executable,
@@ -266,23 +289,21 @@ async def main() -> None:
     )
 
     client = AsyncAnthropic()
+    results: list[CaseResult] = []
 
     async with (
         stdio_client(server_params) as (read, write),
         ClientSession(read, write) as session,
     ):
         await session.initialize()
-        result = await run_case(case, session, client)
+        for case in cases:
+            result = await run_case(case, session, client)
+            score(case, result)
+            results.append(result)
 
-    for turn in result.turns:
-        print(f"Tool call: {turn.tool_name} {turn.tool_args}")
-    if result.final_text:
-        print(f"Final response: {result.final_text}")
-    if not result.completed:
-        print(
-            f"Stopped without end_turn after {result.iterations} "
-            f"iteration(s) (cap={MAX_ITERATIONS})."
-        )
+    _print_summary(results)
+    path = persist_run(results, RUNS_DIR, MODEL, started_at)
+    print(f"Run persisted to: {path}")
 
 
 if __name__ == "__main__":
