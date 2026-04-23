@@ -64,7 +64,9 @@ This repo is public. The following must not appear in any committed file, commit
 
 In examples, docstrings, tests, and fixtures, use generic placeholders: "Acme", "Smith", "Example LLC". Test data is synthetic.
 
-Before committing, grep the diff for anything that looks like a proper noun you didn't invent. Pre-commit hooks will not catch this — it's a human judgment check.
+Before committing, grep the diff for anything that looks like a proper noun you didn't invent. This is primarily a human judgment check.
+
+A `block-client-names` pre-commit hook provides a mechanical backstop: it refuses commits that contain any term listed in the local `.client-names` file (gitignored, per-clone). The hook is defense-in-depth and only catches exact-string whole-word matches — partial matches, paraphrases, and non-name identifiers (matter IDs, distinctive case facts) still depend on the principle above. `.client-names.example` documents the format; README.md has setup steps.
 
 The server runs against live Clio data. Treat all tool inputs and
 outputs as sensitive downstream of the machine. This applies to every
