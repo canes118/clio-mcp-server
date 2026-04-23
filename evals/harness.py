@@ -12,7 +12,7 @@ import json
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from anthropic import AsyncAnthropic
@@ -206,7 +206,7 @@ def persist_run(
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     git_sha = _short_git_sha()
-    finished_at = datetime.now(timezone.utc)
+    finished_at = datetime.now(UTC)
     run_id = f"{finished_at.strftime('%Y%m%d-%H%M%S')}-{git_sha}"
 
     tool_match_passes = sum(1 for r in results if r.scores.get("tool_match"))
@@ -269,7 +269,7 @@ async def main() -> None:
     )
     args = parser.parse_args()
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
 
     if args.query is not None:
         cases: list[TestCase] = [
