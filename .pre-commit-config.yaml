@@ -9,6 +9,13 @@ repos:
         always_run: true
         stages: [pre-commit]
 
+      - id: block-client-names
+        name: Block client names from denylist
+        entry: scripts/check_client_names.py
+        language: python
+        pass_filenames: true
+        stages: [pre-commit]
+
       - id: conventional-commit
         name: Conventional Commits format
         language: system

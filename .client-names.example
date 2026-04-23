@@ -1,0 +1,17 @@
+# Client name denylist for the block-client-names pre-commit hook.
+# Copy this file to `.client-names` (gitignored) and add one client
+# name per line. Matching is case-insensitive and whole-word.
+#
+# Add names of:
+# - Clients whose data this project might touch (eval fixtures,
+#   manual test queries, daily notes copied into commits)
+# - Clients currently top-of-mind whose names might slip into a
+#   placeholder by accident
+#
+# This is defense-in-depth, not a complete audit. CLAUDE.md's
+# confidentiality guidance still applies; the hook catches the
+# subset of mistakes that are exact-string matches.
+#
+# Example entries (delete and replace with real ones):
+# Acme Corp
+# Widget LLC
