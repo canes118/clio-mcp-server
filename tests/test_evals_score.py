@@ -8,7 +8,7 @@ accidentally during a later "simplify" pass, so they are pinned here.
 from typing import Any
 
 from evals.cases import CaseResult, TestCase, TurnRecord
-from evals.harness import score
+from evals.scoring import score
 
 
 def _case(
