@@ -8,8 +8,12 @@ explicit agent loop. Per-case output is returned as a `CaseResult`
 
 import argparse
 import asyncio
+import json
+import subprocess
 import sys
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
@@ -24,6 +28,7 @@ MODEL = "claude-sonnet-4-5"
 MAX_TOKENS = 1024
 MAX_ITERATIONS = 5
 DEFAULT_QUERY = "find matters matching 'Acme'"
+RUNS_DIR = Path(__file__).parent / "runs"
 
 
 def _mcp_tool_to_anthropic(tool: types.Tool) -> dict:
@@ -164,6 +169,76 @@ def score(case: TestCase, result: CaseResult) -> dict[str, bool]:
     }
     result.scores = scores
     return scores
+
+
+def _short_git_sha() -> str:
+    """Return ``git rev-parse --short HEAD`` or ``"nogit"`` on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "nogit"
+    return result.stdout.strip() or "nogit"
+
+
+def persist_run(
+    results: list[CaseResult],
+    runs_dir: Path,
+    model: str,
+    started_at: datetime,
+) -> Path:
+    """Write a run as a single JSON file and return its path.
+
+    Filename is ``{YYYYMMDD-HHMMSS}-{short_sha}.json`` using the
+    finished-at timestamp. ``runs_dir`` is created if missing. If git
+    is unavailable, the SHA slot falls back to ``"nogit"`` rather than
+    crashing the harness.
+
+    Case payloads go through ``CaseResult.model_dump(mode="json")`` so
+    nested Pydantic models and other JSON-tricky types serialize
+    cleanly. Summary counters reflect the scores already populated by
+    ``score()``; callers are expected to have scored each result before
+    calling this function.
+    """
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
+    git_sha = _short_git_sha()
+    finished_at = datetime.now(timezone.utc)
+    run_id = f"{finished_at.strftime('%Y%m%d-%H%M%S')}-{git_sha}"
+
+    tool_match_passes = sum(1 for r in results if r.scores.get("tool_match"))
+    args_match_passes = sum(1 for r in results if r.scores.get("args_match"))
+    completed_passes = sum(1 for r in results if r.scores.get("completed"))
+    all_passed = sum(
+        1
+        for r in results
+        if all(r.scores.get(k) for k in ("tool_match", "args_match", "completed"))
+    )
+
+    payload = {
+        "run_id": run_id,
+        "started_at": started_at.isoformat(),
+        "finished_at": finished_at.isoformat(),
+        "git_sha": git_sha,
+        "model": model,
+        "cases": [r.model_dump(mode="json") for r in results],
+        "summary": {
+            "total": len(results),
+            "tool_match_passes": tool_match_passes,
+            "args_match_passes": args_match_passes,
+            "completed_passes": completed_passes,
+            "all_passed": all_passed,
+        },
+    }
+
+    path = runs_dir / f"{run_id}.json"
+    with path.open("w") as f:
+        json.dump(payload, f, indent=2)
+    return path
 
 
 async def main() -> None:
