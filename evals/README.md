@@ -11,9 +11,10 @@ constructs arguments in response to a prompt.
 
 Quantitative measurement of tool selection and argument construction —
 *which* tool the model picks, with *what* arguments, on *which* turn —
-not just "did it produce a reasonable-looking answer." Concrete metrics
-are TBD. This skeleton validates end-to-end plumbing only; metrics,
-scenario libraries, and result storage come in later PRs.
+not just "did it produce a reasonable-looking answer." Each run over
+the committed `CASES` list scores three booleans per case
+(`tool_match`, `args_match`, `completed`) and persists the full
+capture as JSON under `evals/runs/` (gitignored).
 
 ## Running
 
@@ -23,6 +24,12 @@ Run from the repo root (not from `evals/`):
 uv run --group evals python -m evals.harness
 uv run --group evals python -m evals.harness --query "find contacts named Smith"
 ```
+
+With no arguments, the harness runs the committed `CASES` list from
+`evals/cases.py`, scores each result, prints a plain-text summary
+table, and writes the full run to `evals/runs/{timestamp}-{sha}.json`.
+`--query` is an ad-hoc override for exploration — it builds a single
+unscored case on the fly; scoring will fail on it by design.
 
 Requires `ANTHROPIC_API_KEY` in `.env`. The harness spawns the server
 as a subprocess, which needs authenticated Clio tokens — run
