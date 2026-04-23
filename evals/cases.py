@@ -26,6 +26,8 @@ class TurnRecord(BaseModel):
 
 
 class TestCase(BaseModel):
+    __test__ = False  # not a pytest test class; name collides with the heuristic
+
     name: str
     query: str
     expected_tool: str
