@@ -11,3 +11,6 @@ dist/
 
 # Eval artifacts
 evals/runs/
+
+# Local-only client name denylist (pre-commit hook reads this)
+.client-names
