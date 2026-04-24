@@ -52,4 +52,10 @@ CASES: list[TestCase] = [
         expected_tool="search_matters",
         expected_args_subset={"query": "Acme"},
     ),
+    TestCase(
+        name="search_contacts_company",
+        query="find the Acme company in my contacts",
+        expected_tool="search_contacts",
+        expected_args_subset={"query": "Acme", "type": "Company"},
+    ),
 ]
