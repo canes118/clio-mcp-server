@@ -30,10 +30,9 @@ MATTER_FIELDS = (
 )
 
 CONTACT_FIELDS = (
-    "id,type,primary_email_address,primary_phone_number,"
-    "created_at,updated_at,"
-    "first_name,last_name,prefix,middle_name,suffix,date_of_birth,"
-    "name"
+    "id,type,name,"
+    "first_name,last_name,"
+    "primary_email_address,primary_phone_number"
 )
 
 
