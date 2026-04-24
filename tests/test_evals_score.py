@@ -23,14 +23,20 @@ def _case(
     )
 
 
+_UNSET: Any = object()
+
+
 def _turn(
     name: str = "search_matters",
     args: dict[str, Any] | None = None,
+    tool_result: Any = _UNSET,
 ) -> TurnRecord:
+    if tool_result is _UNSET:
+        tool_result = {"isError": False, "content": []}
     return TurnRecord(
         tool_name=name,
         tool_args=args or {},
-        tool_result=None,
+        tool_result=tool_result,
         latency_ms=0.0,
     )
 
@@ -56,7 +62,12 @@ def test_empty_turns_yields_all_false() -> None:
 
     scores = score(case, result)
 
-    assert scores == {"tool_match": False, "args_match": False, "completed": False}
+    assert scores == {
+        "tool_match": False,
+        "args_match": False,
+        "tool_succeeded": False,
+        "completed": False,
+    }
     assert result.scores == scores
 
 
@@ -136,3 +147,59 @@ def test_empty_expected_subset_matches_any_args() -> None:
     scores = score(case, result)
 
     assert scores["args_match"] is True
+
+
+def test_tool_succeeded_true_when_first_turn_not_errored() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result={"isError": False, "content": []})])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is True
+
+
+def test_tool_succeeded_false_when_first_turn_errored() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result={"isError": True, "content": []})])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+
+def test_tool_succeeded_false_when_is_error_key_missing() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result={"content": []})])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+
+def test_tool_succeeded_false_when_tool_result_is_not_a_dict() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result=None)])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+    result = _result(turns=[_turn(tool_result="some string")])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+
+def test_tool_succeeded_only_considers_first_turn() -> None:
+    case = _case()
+    result = _result(
+        turns=[
+            _turn(tool_result={"isError": True, "content": []}),
+            _turn(tool_result={"isError": False, "content": []}),
+        ],
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
