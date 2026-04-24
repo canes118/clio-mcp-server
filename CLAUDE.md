@@ -62,7 +62,13 @@ This repo is public. The following must not appear in any committed file, commit
 - Real IDs that could be linked back to actual Clio records
 - Environment-specific identifiers (sandbox names, workspace names)
 
-In examples, docstrings, tests, and fixtures, use generic placeholders: "Acme", "Smith", "Example LLC". Test data is synthetic.
+In examples, docstrings, tests, and fixtures, use generic placeholders. Test data is synthetic. Canonical placeholders:
+
+- "Acme" — companies, organizations, firms, and any other non-person entity.
+- "Smith" — person surnames (e.g., "Jane Smith").
+- "Example LLC" — acceptable long-form organization placeholder when "Acme" would be ambiguous.
+
+Prefer these over ad-hoc inventions so eval prompts and fixtures stay internally consistent: a prompt that says "the Acme matter" unambiguously means a company, and one that says "Jane Smith" unambiguously means a person.
 
 Before committing, grep the diff for anything that looks like a proper noun you didn't invent. This is primarily a human judgment check.
 
