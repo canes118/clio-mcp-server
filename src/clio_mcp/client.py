@@ -55,7 +55,11 @@ class ClioClient:
         self._auth_client = auth_client or ClioAuthClient(config)
 
     async def get_matter(self, matter_id: int) -> Matter:
-        payload = await self._request("GET", f"/matters/{matter_id}.json")
+        payload = await self._request(
+            "GET",
+            f"/matters/{matter_id}.json",
+            params={"fields": MATTER_FIELDS},
+        )
         return Matter.model_validate(payload["data"])
 
     async def search_matters(self, query: str, limit: int = 25) -> list[Matter]:
