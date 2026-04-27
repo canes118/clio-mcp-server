@@ -40,6 +40,12 @@ evals = [
     "anthropic>=0.96.0",
     "mcp>=1.27.0",
 ]
+otel = [
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp-proto-grpc",
+    "opentelemetry-instrumentation-httpx",
+]
 
 [tool.ruff]
 line-length = 88
