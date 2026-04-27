@@ -88,6 +88,26 @@ class TestGetMatter:
         assert sent_auth == "Bearer fake-access-token"
 
     @respx.mock
+    async def test_requests_expanded_fields(self, client: ClioClient) -> None:
+        route = respx.get("https://app.clio.com/api/v4/matters/123.json").mock(
+            return_value=httpx.Response(200, json={"data": MATTER_PAYLOAD})
+        )
+
+        await client.get_matter(123)
+
+        request = route.calls[0].request
+        assert request.url.params["fields"] == MATTER_FIELDS
+        fields = request.url.params["fields"]
+        for expected in (
+            "description",
+            "status",
+            "billable",
+            "client",
+            "responsible_attorney",
+        ):
+            assert expected in fields
+
+    @respx.mock
     async def test_raises_not_found_on_404(self, client: ClioClient) -> None:
         respx.get("https://app.clio.com/api/v4/matters/999.json").mock(
             return_value=httpx.Response(404, text='{"error":"not found"}')
