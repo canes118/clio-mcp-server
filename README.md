@@ -10,7 +10,7 @@ MCP server that exposes [Clio's](https://www.clio.com/) practice management API 
 uv sync
 cp .env.example .env
 # Fill in your Clio API credentials and Anthropic key
-uv run python -m clio_mcp.server
+uv run clio-mcp
 ```
 
 ## Tools
@@ -19,7 +19,9 @@ _Coming soon_
 
 ## Architecture
 
-_Coming soon_
+![Clio MCP Server architecture](docs/architecture.svg)
+
+MCP clients connect to the server over stdio. The server exposes Clio's REST API as typed tools backed by `ClioClient`, an httpx-based wrapper. OpenTelemetry auto-instrumentation on FastMCP and httpx exports spans to a local Arize Phoenix instance for tracing.
 
 ## Contributing / Local setup
 
