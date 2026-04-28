@@ -71,7 +71,11 @@ class ClioClient:
         return [Matter.model_validate(item) for item in payload["data"]]
 
     async def get_contact(self, contact_id: int) -> Contact:
-        payload = await self._request("GET", f"/contacts/{contact_id}.json")
+        payload = await self._request(
+            "GET",
+            f"/contacts/{contact_id}.json",
+            params={"fields": CONTACT_FIELDS},
+        )
         return _contact_adapter.validate_python(payload["data"])
 
     async def search_contacts(
