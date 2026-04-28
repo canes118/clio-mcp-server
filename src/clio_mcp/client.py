@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import TypeAdapter
@@ -62,12 +62,20 @@ class ClioClient:
         )
         return Matter.model_validate(payload["data"])
 
-    async def search_matters(self, query: str, limit: int = 25) -> list[Matter]:
-        payload = await self._request(
-            "GET",
-            "/matters.json",
-            params={"query": query, "limit": limit, "fields": MATTER_FIELDS},
-        )
+    async def search_matters(
+        self,
+        query: str,
+        limit: int = 25,
+        status: Literal["open", "pending", "closed"] | None = None,
+    ) -> list[Matter]:
+        params: dict[str, Any] = {
+            "query": query,
+            "limit": limit,
+            "fields": MATTER_FIELDS,
+        }
+        if status is not None:
+            params["status"] = status
+        payload = await self._request("GET", "/matters.json", params=params)
         return [Matter.model_validate(item) for item in payload["data"]]
 
     async def get_contact(self, contact_id: int) -> Contact:
