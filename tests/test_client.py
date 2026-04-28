@@ -151,6 +151,18 @@ class TestSearchMatters:
         assert request.url.params["query"] == "Smith"
         assert request.url.params["limit"] == "10"
         assert request.url.params["fields"] == MATTER_FIELDS
+        assert "status" not in request.url.params
+
+    @respx.mock
+    async def test_passes_status_filter(self, client: ClioClient) -> None:
+        route = respx.get("https://app.clio.com/api/v4/matters.json").mock(
+            return_value=httpx.Response(200, json={"data": [MATTER_PAYLOAD]})
+        )
+
+        await client.search_matters("Smith", limit=10, status="open")
+
+        request = route.calls[0].request
+        assert request.url.params["status"] == "open"
 
     @respx.mock
     async def test_parses_nested_refs_from_expanded_payload(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from clio_mcp.auth.models import ClioConfig
 from clio_mcp.client import ClioClient
 from clio_mcp.models import Matter
@@ -26,19 +28,26 @@ async def get_matter(matter_id: int) -> Matter:
     return await _get_client().get_matter(matter_id)
 
 
-async def search_matters(query: str, limit: int = 25) -> list[Matter]:
+async def search_matters(
+    query: str,
+    limit: int = 25,
+    status: Literal["open", "pending", "closed"] | None = None,
+) -> list[Matter]:
     """Search for matters by keyword. Matches against matter numbers,
     descriptions, and client names.
 
-    Pass distinctive terms — a company name, person's last name. 
+    Pass distinctive terms — a company name, person's last name.
     Do not pass full sentences or predicate expressions.
 
     Good: "Acme", "Smith"
     Bad: "all Smith matters", "client name contains Acme"
+
+    The optional status filter restricts results to matters in that
+    status; omit it to return matters of all statuses.
 
     Returns up to limit matters (default 25, max 100). Passing a limit
     above 100 raises ValueError.
     """
     if limit > 100:
         raise ValueError("limit must be 100 or fewer")
-    return await _get_client().search_matters(query, limit)
+    return await _get_client().search_matters(query, limit, status)
