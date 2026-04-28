@@ -7,6 +7,9 @@ from typing import Literal
 from clio_mcp.auth.models import ClioConfig
 from clio_mcp.client import ClioClient
 from clio_mcp.models import Contact
+from clio_mcp.observability import Status, StatusCode, trace
+
+tracer = trace.get_tracer(__name__)
 
 _client: ClioClient | None = None
 
@@ -25,7 +28,22 @@ async def get_contact(contact_id: int) -> Contact:
     and need its details; use search_contacts instead if you're looking
     for contacts by name or keyword.
     """
-    return await _get_client().get_contact(contact_id)
+    with tracer.start_as_current_span(
+        "tool.get_contact",
+        record_exception=False,
+        set_status_on_exception=False,
+    ) as span:
+        span.set_attribute("clio.tool.name", "get_contact")
+        span.set_attribute("clio.tool.args_keys", "contact_id")
+        try:
+            result = await _get_client().get_contact(contact_id)
+        except Exception as exc:
+            span.set_attribute("clio.tool.result.shape", "error")
+            span.record_exception(exc)
+            span.set_status(Status(StatusCode.ERROR, str(exc)))
+            raise
+        span.set_attribute("clio.tool.result.shape", "dict")
+        return result
 
 
 async def search_contacts(
@@ -50,6 +68,25 @@ async def search_contacts(
     Returns up to limit contacts (default 25, max 100). Passing a limit
     above 100 raises ValueError.
     """
-    if limit > 100:
-        raise ValueError("limit must be 100 or fewer")
-    return await _get_client().search_contacts(query, type, limit)
+    args_keys = ["limit", "query"]
+    if type is not None:
+        args_keys.append("type")
+    with tracer.start_as_current_span(
+        "tool.search_contacts",
+        record_exception=False,
+        set_status_on_exception=False,
+    ) as span:
+        span.set_attribute("clio.tool.name", "search_contacts")
+        span.set_attribute("clio.tool.args_keys", ",".join(args_keys))
+        try:
+            if limit > 100:
+                raise ValueError("limit must be 100 or fewer")
+            result = await _get_client().search_contacts(query, type, limit)
+        except Exception as exc:
+            span.set_attribute("clio.tool.result.shape", "error")
+            span.record_exception(exc)
+            span.set_status(Status(StatusCode.ERROR, str(exc)))
+            raise
+        span.set_attribute("clio.tool.result.shape", "list")
+        span.set_attribute("clio.tool.result.item_count", len(result))
+        return result
