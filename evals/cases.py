@@ -32,6 +32,7 @@ class TestCase(BaseModel):
     query: str
     expected_tool: str
     expected_args_subset: dict[str, Any]
+    expected_non_null_fields: list[str] = Field(default_factory=list)
 
 
 class CaseResult(BaseModel):
@@ -57,5 +58,23 @@ CASES: list[TestCase] = [
         query="find the Acme company in my contacts",
         expected_tool="search_contacts",
         expected_args_subset={"query": "Acme", "type": "Company"},
+    ),
+    TestCase(
+        name="get_matter_by_id",
+        query="Give me details on matter 1668402907",
+        expected_tool="get_matter",
+        expected_args_subset={"matter_id": 1668402907},
+        expected_non_null_fields=["description", "status"],
+    ),
+    TestCase(
+        name="get_contact_by_id",
+        query="Give me details on contact 1809175816",
+        expected_tool="get_contact",
+        expected_args_subset={"contact_id": 1809175816},
+        expected_non_null_fields=[
+            "first_name",
+            "last_name",
+            "primary_email_address",
+        ],
     ),
 ]
