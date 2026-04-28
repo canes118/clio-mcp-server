@@ -198,6 +198,25 @@ class TestGetContact:
         assert sent_auth == "Bearer fake-access-token"
 
     @respx.mock
+    async def test_requests_expanded_fields(self, client: ClioClient) -> None:
+        route = respx.get("https://app.clio.com/api/v4/contacts/501.json").mock(
+            return_value=httpx.Response(200, json={"data": PERSON_PAYLOAD})
+        )
+
+        await client.get_contact(501)
+
+        request = route.calls[0].request
+        assert request.url.params["fields"] == CONTACT_FIELDS
+        fields = request.url.params["fields"]
+        for expected in (
+            "type",
+            "first_name",
+            "last_name",
+            "primary_email_address",
+        ):
+            assert expected in fields
+
+    @respx.mock
     async def test_returns_parsed_company(self, client: ClioClient) -> None:
         respx.get("https://app.clio.com/api/v4/contacts/502.json").mock(
             return_value=httpx.Response(200, json={"data": COMPANY_PAYLOAD})
