@@ -14,13 +14,35 @@ from evals.scoring import score
 def _case(
     expected_tool: str = "search_matters",
     subset: dict[str, Any] | None = None,
+    non_null_fields: list[str] | None = None,
 ) -> TestCase:
     return TestCase(
         name="t",
         query="q",
         expected_tool=expected_tool,
         expected_args_subset=subset or {},
+        expected_non_null_fields=non_null_fields or [],
     )
+
+
+def _dict_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Mimic an MCP CallToolResult dump whose tool returned a dict-shaped model."""
+    return {
+        "meta": None,
+        "content": [{"type": "text", "text": "{}"}],
+        "structuredContent": payload,
+        "isError": False,
+    }
+
+
+def _list_payload(items: list[Any]) -> dict[str, Any]:
+    """Mimic an MCP CallToolResult dump whose tool returned a list (FastMCP wraps it)."""
+    return {
+        "meta": {"fastmcp": {"wrap_result": True}},
+        "content": [{"type": "text", "text": "[]"}],
+        "structuredContent": {"result": items},
+        "isError": False,
+    }
 
 
 _UNSET: Any = object()
@@ -65,6 +87,7 @@ def test_empty_turns_yields_all_false() -> None:
     assert scores == {
         "tool_match": False,
         "args_match": False,
+        "result_match": False,
         "tool_succeeded": False,
         "completed": False,
     }
@@ -203,3 +226,142 @@ def test_tool_succeeded_only_considers_first_turn() -> None:
     scores = score(case, result)
 
     assert scores["tool_succeeded"] is False
+
+
+def test_result_match_passes_when_all_listed_fields_non_null() -> None:
+    case = _case(
+        expected_tool="get_matter",
+        non_null_fields=["description", "status"],
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="get_matter",
+                tool_result=_dict_payload(
+                    {"id": 1, "description": "Acme Lend", "status": "Open"}
+                ),
+            )
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is True
+
+
+def test_result_match_fails_when_listed_field_is_null() -> None:
+    case = _case(
+        expected_tool="get_matter",
+        non_null_fields=["description", "status"],
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="get_matter",
+                tool_result=_dict_payload(
+                    {"id": 1, "description": None, "status": "Open"}
+                ),
+            )
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is False
+
+
+def test_result_match_fails_when_listed_field_is_absent() -> None:
+    case = _case(
+        expected_tool="get_matter",
+        non_null_fields=["description", "status"],
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="get_matter",
+                tool_result=_dict_payload({"id": 1, "status": "Open"}),
+            )
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is False
+
+
+def test_result_match_vacuous_with_empty_expected_fields() -> None:
+    case = _case(expected_tool="search_matters", non_null_fields=[])
+    result = _result(
+        turns=[
+            _turn(
+                name="search_matters",
+                tool_result=_list_payload([{"id": 1}]),
+            )
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is True
+
+
+def test_result_match_fails_for_list_payload_with_non_empty_expected() -> None:
+    # Misconfigured: list-shape result paired with field-level expectations.
+    case = _case(
+        expected_tool="search_matters",
+        non_null_fields=["description"],
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="search_matters",
+                tool_result=_list_payload([{"description": "Acme"}]),
+            )
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is False
+
+
+def test_result_match_fails_when_expected_tool_was_not_called() -> None:
+    case = _case(
+        expected_tool="get_matter",
+        non_null_fields=["description"],
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="search_matters",
+                tool_result=_list_payload([{"description": "Acme"}]),
+            )
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is False
+
+
+def test_result_match_unwraps_fastmcp_wrapped_dict() -> None:
+    # Discriminated unions (e.g. Contact) come back wrapped as {"result": <dict>}.
+    case = _case(
+        expected_tool="get_contact",
+        non_null_fields=["first_name", "last_name"],
+    )
+    wrapped = {
+        "meta": {"fastmcp": {"wrap_result": True}},
+        "content": [{"type": "text", "text": "{}"}],
+        "structuredContent": {
+            "result": {"first_name": "Jane", "last_name": "Smith"}
+        },
+        "isError": False,
+    }
+    result = _result(
+        turns=[_turn(name="get_contact", tool_result=wrapped)]
+    )
+
+    scores = score(case, result)
+
+    assert scores["result_match"] is True

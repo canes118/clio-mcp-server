@@ -176,11 +176,15 @@ def persist_run(
 
     tool_match_passes = sum(1 for r in results if r.scores.get("tool_match"))
     args_match_passes = sum(1 for r in results if r.scores.get("args_match"))
+    result_match_passes = sum(1 for r in results if r.scores.get("result_match"))
     completed_passes = sum(1 for r in results if r.scores.get("completed"))
     all_passed = sum(
         1
         for r in results
-        if all(r.scores.get(k) for k in ("tool_match", "args_match", "completed"))
+        if all(
+            r.scores.get(k)
+            for k in ("tool_match", "args_match", "result_match", "completed")
+        )
     )
 
     payload = {
@@ -194,6 +198,7 @@ def persist_run(
             "total": len(results),
             "tool_match_passes": tool_match_passes,
             "args_match_passes": args_match_passes,
+            "result_match_passes": result_match_passes,
             "completed_passes": completed_passes,
             "all_passed": all_passed,
         },
@@ -208,15 +213,17 @@ def persist_run(
 def _print_summary(results: list[CaseResult]) -> None:
     """Print a plain-text summary table for a list of scored results."""
     header = (
-        f"{'CASE':<40}{'TOOL':<8}{'ARGS':<8}{'DONE':<8}{'ITER':<8}{'TIME_MS'}"
+        f"{'CASE':<40}{'TOOL':<8}{'ARGS':<8}{'RESULT':<8}"
+        f"{'DONE':<8}{'ITER':<8}{'TIME_MS'}"
     )
     print(header)
     for r in results:
         tool = "PASS" if r.scores.get("tool_match") else "FAIL"
         args_col = "PASS" if r.scores.get("args_match") else "FAIL"
+        result_col = "PASS" if r.scores.get("result_match") else "FAIL"
         done = "PASS" if r.scores.get("completed") else "FAIL"
         print(
-            f"{r.case_name:<40}{tool:<8}{args_col:<8}{done:<8}"
+            f"{r.case_name:<40}{tool:<8}{args_col:<8}{result_col:<8}{done:<8}"
             f"{r.iterations:<8}{r.wall_time_ms:.1f}"
         )
 
