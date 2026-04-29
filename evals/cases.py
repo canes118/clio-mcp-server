@@ -25,14 +25,18 @@ class TurnRecord(BaseModel):
     latency_ms: float
 
 
+class ExpectedCall(BaseModel):
+    tool: str
+    args_subset: dict[str, Any] = Field(default_factory=dict)
+    non_null_fields: list[str] = Field(default_factory=list)
+
+
 class TestCase(BaseModel):
     __test__ = False  # not a pytest test class; name collides with the heuristic
 
     name: str
     query: str
-    expected_tool: str
-    expected_args_subset: dict[str, Any]
-    expected_non_null_fields: list[str] = Field(default_factory=list)
+    expected_calls: list[ExpectedCall]
 
 
 class CaseResult(BaseModel):
@@ -50,31 +54,73 @@ CASES: list[TestCase] = [
     TestCase(
         name="search_matters_generic_term",
         query="find the Acme matter",
-        expected_tool="search_matters",
-        expected_args_subset={"query": "Acme"},
+        expected_calls=[
+            ExpectedCall(
+                tool="search_matters",
+                args_subset={"query": "Acme"},
+            ),
+        ],
     ),
     TestCase(
         name="search_contacts_company",
         query="find the Acme company in my contacts",
-        expected_tool="search_contacts",
-        expected_args_subset={"query": "Acme", "type": "Company"},
+        expected_calls=[
+            ExpectedCall(
+                tool="search_contacts",
+                args_subset={"query": "Acme", "type": "Company"},
+            ),
+        ],
     ),
     TestCase(
         name="get_matter_by_id",
         query="Give me details on matter 1668402907",
-        expected_tool="get_matter",
-        expected_args_subset={"matter_id": 1668402907},
-        expected_non_null_fields=["description", "status"],
+        expected_calls=[
+            ExpectedCall(
+                tool="get_matter",
+                args_subset={"matter_id": 1668402907},
+                non_null_fields=["description", "status"],
+            ),
+        ],
     ),
     TestCase(
         name="get_contact_by_id",
         query="Give me details on contact 1809175816",
-        expected_tool="get_contact",
-        expected_args_subset={"contact_id": 1809175816},
-        expected_non_null_fields=[
-            "first_name",
-            "last_name",
-            "primary_email_address",
+        expected_calls=[
+            ExpectedCall(
+                tool="get_contact",
+                args_subset={"contact_id": 1809175816},
+                non_null_fields=[
+                    "first_name",
+                    "last_name",
+                    "primary_email_address",
+                ],
+            ),
+        ],
+    ),
+    TestCase(
+        name="search_matters_status_filter",
+        query="What open matters do I have?",
+        expected_calls=[
+            ExpectedCall(
+                tool="search_matters",
+                args_subset={"status": "open"},
+            ),
+        ],
+    ),
+    TestCase(
+        name="matter_to_client_drilldown",
+        query="What's the full contact info for the client on matter id 1668402907?",
+        expected_calls=[
+            ExpectedCall(
+                tool="get_matter",
+                args_subset={"matter_id": 1668402907},
+                non_null_fields=["description", "status"],
+            ),
+            ExpectedCall(
+                tool="get_contact",
+                args_subset={"contact_id": 2168806432},
+                non_null_fields=["type", "name"],
+            ),
         ],
     ),
 ]
