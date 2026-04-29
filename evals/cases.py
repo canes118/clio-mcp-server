@@ -108,6 +108,17 @@ CASES: list[TestCase] = [
         ],
     ),
     TestCase(
+        name="search_matters_no_query",
+        query="List my recent matters.",
+        expected_calls=[
+            ExpectedCall(
+                tool="search_matters",
+                args_subset={},
+                non_null_fields=[],
+            ),
+        ],
+    ),
+    TestCase(
         name="matter_to_client_drilldown",
         query="What's the full contact info for the client on matter id 1668402907?",
         expected_calls=[
