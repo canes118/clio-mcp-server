@@ -77,4 +77,10 @@ CASES: list[TestCase] = [
             "primary_email_address",
         ],
     ),
+    TestCase(
+        name="search_matters_status_filter",
+        query="What open matters do I have?",
+        expected_tool="search_matters",
+        expected_args_subset={"status": "open"},
+    ),
 ]
