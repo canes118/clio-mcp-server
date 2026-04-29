@@ -51,6 +51,18 @@ async def test_search_matters_passes_status(sample_matter: Matter) -> None:
     fake_client.search_matters.assert_awaited_once_with("Smith", 10, "open")
 
 
+async def test_search_matters_passes_none_query_when_omitted(
+    sample_matter: Matter,
+) -> None:
+    fake_client = AsyncMock()
+    fake_client.search_matters.return_value = [sample_matter]
+
+    with patch.object(matters, "_get_client", return_value=fake_client):
+        await matters.search_matters(limit=10, status="open")
+
+    fake_client.search_matters.assert_awaited_once_with(None, 10, "open")
+
+
 async def test_search_matters_rejects_limit_above_100() -> None:
     with pytest.raises(ValueError, match="100"):
         await matters.search_matters("Smith", limit=101)

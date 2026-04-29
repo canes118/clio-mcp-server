@@ -47,7 +47,7 @@ async def get_matter(matter_id: int) -> Matter:
 
 
 async def search_matters(
-    query: str,
+    query: str | None = None,
     limit: int = 25,
     status: Literal["open", "pending", "closed"] | None = None,
 ) -> list[Matter]:
@@ -66,7 +66,9 @@ async def search_matters(
     Returns up to limit matters (default 25, max 100). Passing a limit
     above 100 raises ValueError.
     """
-    args_keys = ["limit", "query"]
+    args_keys = ["limit"]
+    if query is not None:
+        args_keys.append("query")
     if status is not None:
         args_keys.append("status")
     with tracer.start_as_current_span(
