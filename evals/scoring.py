@@ -109,11 +109,16 @@ def score(case: TestCase, result: CaseResult) -> dict[str, bool]:
             "completed": result.completed,
         }
     else:
-        tool_match = all(a.tool_name == e.tool for a, e in zip(actual, expected))
-        args_match = all(
-            _args_match(a.tool_args, e.args_subset) for a, e in zip(actual, expected)
+        tool_match = all(
+            a.tool_name == e.tool for a, e in zip(actual, expected, strict=True)
         )
-        result_match = all(_result_match(a, e) for a, e in zip(actual, expected))
+        args_match = all(
+            _args_match(a.tool_args, e.args_subset)
+            for a, e in zip(actual, expected, strict=True)
+        )
+        result_match = all(
+            _result_match(a, e) for a, e in zip(actual, expected, strict=True)
+        )
         tool_succeeded = all(_call_succeeded(a) for a in actual)
         scores = {
             "tool_match": tool_match,
