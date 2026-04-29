@@ -64,15 +64,16 @@ class ClioClient:
 
     async def search_matters(
         self,
-        query: str,
+        query: str | None = None,
         limit: int = 25,
         status: Literal["open", "pending", "closed"] | None = None,
     ) -> list[Matter]:
         params: dict[str, Any] = {
-            "query": query,
             "limit": limit,
             "fields": MATTER_FIELDS,
         }
+        if query is not None:
+            params["query"] = query
         if status is not None:
             params["status"] = status
         payload = await self._request("GET", "/matters.json", params=params)

@@ -109,6 +109,20 @@ async def test_search_matters_omits_optional_arg_key_when_absent(
     assert span.attributes["clio.tool.result.item_count"] == 0
 
 
+async def test_search_matters_args_keys_omits_query_when_none(
+    span_exporter: InMemorySpanExporter,
+) -> None:
+    fake_client = AsyncMock()
+    fake_client.search_matters.return_value = []
+
+    with patch.object(matters, "_get_client", return_value=fake_client):
+        await matters.search_matters(limit=5, status="open")
+
+    span = _only_tool_span(span_exporter)
+    assert span.attributes is not None
+    assert span.attributes["clio.tool.args_keys"] == "limit,status"
+
+
 async def test_tool_span_records_exception_and_sets_error_status(
     span_exporter: InMemorySpanExporter,
 ) -> None:
