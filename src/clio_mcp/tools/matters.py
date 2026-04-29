@@ -51,20 +51,26 @@ async def search_matters(
     limit: int = 25,
     status: Literal["open", "pending", "closed"] | None = None,
 ) -> list[Matter]:
-    """Search for matters by keyword. Matches against matter numbers,
-    descriptions, and client names.
+    """List matters, optionally filtered by keyword and/or status.
+    Both filters are optional — call with neither to list recent
+    matters across all statuses, with either to narrow on one
+    dimension, or with both to combine.
 
-    Pass distinctive terms — a company name, person's last name.
-    Do not pass full sentences or predicate expressions.
+    query is a keyword search against matter numbers, descriptions,
+    and client names. Pass distinctive terms — a company name, a
+    person's last name. Do not pass full sentences or predicate
+    expressions. Omit query when the user has not named a specific
+    matter or party.
 
     Good: "Acme", "Smith"
     Bad: "all Smith matters", "client name contains Acme"
 
-    The optional status filter restricts results to matters in that
-    status; omit it to return matters of all statuses.
+    status restricts results to matters in that status ("open",
+    "pending", or "closed"). Omit it to return matters of all
+    statuses.
 
-    Returns up to limit matters (default 25, max 100). Passing a limit
-    above 100 raises ValueError.
+    Returns up to limit matters (default 25, max 100). Passing a
+    limit above 100 raises ValueError.
     """
     args_keys = ["limit"]
     if query is not None:
