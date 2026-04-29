@@ -177,13 +177,20 @@ def persist_run(
     tool_match_passes = sum(1 for r in results if r.scores.get("tool_match"))
     args_match_passes = sum(1 for r in results if r.scores.get("args_match"))
     result_match_passes = sum(1 for r in results if r.scores.get("result_match"))
+    tool_succeeded_passes = sum(1 for r in results if r.scores.get("tool_succeeded"))
     completed_passes = sum(1 for r in results if r.scores.get("completed"))
     all_passed = sum(
         1
         for r in results
         if all(
             r.scores.get(k)
-            for k in ("tool_match", "args_match", "result_match", "completed")
+            for k in (
+                "tool_match",
+                "args_match",
+                "result_match",
+                "tool_succeeded",
+                "completed",
+            )
         )
     )
 
@@ -199,6 +206,7 @@ def persist_run(
             "tool_match_passes": tool_match_passes,
             "args_match_passes": args_match_passes,
             "result_match_passes": result_match_passes,
+            "tool_succeeded_passes": tool_succeeded_passes,
             "completed_passes": completed_passes,
             "all_passed": all_passed,
         },
@@ -224,7 +232,7 @@ def _print_summary(results: list[CaseResult], cases: list[TestCase]) -> None:
     the agent did vs what was expected without opening the run JSON.
     """
     header = (
-        f"{'CASE':<40}{'TOOL':<8}{'ARGS':<8}{'RESULT':<8}"
+        f"{'CASE':<40}{'TOOL':<8}{'ARGS':<8}{'RESULT':<8}{'SUCC':<8}"
         f"{'DONE':<8}{'ITER':<8}{'TIME_MS'}"
     )
     print(header)
@@ -233,12 +241,13 @@ def _print_summary(results: list[CaseResult], cases: list[TestCase]) -> None:
         tool = "PASS" if r.scores.get("tool_match") else "FAIL"
         args_col = "PASS" if r.scores.get("args_match") else "FAIL"
         result_col = "PASS" if r.scores.get("result_match") else "FAIL"
+        succ_col = "PASS" if r.scores.get("tool_succeeded") else "FAIL"
         done = "PASS" if r.scores.get("completed") else "FAIL"
         print(
-            f"{r.case_name:<40}{tool:<8}{args_col:<8}{result_col:<8}{done:<8}"
-            f"{r.iterations:<8}{r.wall_time_ms:.1f}"
+            f"{r.case_name:<40}{tool:<8}{args_col:<8}{result_col:<8}{succ_col:<8}"
+            f"{done:<8}{r.iterations:<8}{r.wall_time_ms:.1f}"
         )
-        if "FAIL" in (tool, args_col, result_col, done):
+        if "FAIL" in (tool, args_col, result_col, succ_col, done):
             case = cases_by_name.get(r.case_name)
             expected_repr = (
                 ", ".join(

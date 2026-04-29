@@ -36,6 +36,21 @@ def _args_match(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
     return all(k in actual and actual[k] == v for k, v in expected.items())
 
 
+def _call_succeeded(turn: TurnRecord) -> bool:
+    """A turn succeeded at the MCP protocol level.
+
+    True when ``tool_result`` is a dict with ``isError`` either absent or
+    explicitly False. A non-dict result, or any truthy ``isError`` value,
+    counts as failure. This is distinct from result_match — a tool that
+    returns ``isError: True`` would still pass a vacuous-truth result_match
+    (no fields required), so this column is needed to catch protocol-level
+    failures the field-level scorer misses.
+    """
+    if not isinstance(turn.tool_result, dict):
+        return False
+    return not turn.tool_result.get("isError", False)
+
+
 def _result_match(turn: TurnRecord, expected: ExpectedCall) -> bool:
     if not expected.non_null_fields:
         return True
@@ -63,7 +78,7 @@ def score(case: TestCase, result: CaseResult) -> dict[str, bool]:
     scored positionally and the per-column booleans are aggregated with
     ``all()`` — one boolean per column regardless of trajectory length.
 
-    Returns four booleans:
+    Returns five booleans:
 
     - ``tool_match``: every actual call's tool name matches the expected
       call at the same position, AND lengths match.
@@ -74,6 +89,9 @@ def score(case: TestCase, result: CaseResult) -> dict[str, bool]:
     - ``result_match``: each actual call's payload contains every field
       in the corresponding expected call's ``non_null_fields`` with a
       non-null value. Empty ``non_null_fields`` is vacuous truth.
+    - ``tool_succeeded``: every actual call's ``tool_result`` is a dict
+      with ``isError`` absent or False. Catches protocol-level failures
+      that vacuous-truth ``result_match`` would otherwise pass through.
     - ``completed``: copy of ``result.completed``.
 
     Mutates ``result.scores`` in place and returns the same dict for
@@ -87,6 +105,7 @@ def score(case: TestCase, result: CaseResult) -> dict[str, bool]:
             "tool_match": False,
             "args_match": False,
             "result_match": False,
+            "tool_succeeded": False,
             "completed": result.completed,
         }
     else:
@@ -95,10 +114,12 @@ def score(case: TestCase, result: CaseResult) -> dict[str, bool]:
             _args_match(a.tool_args, e.args_subset) for a, e in zip(actual, expected)
         )
         result_match = all(_result_match(a, e) for a, e in zip(actual, expected))
+        tool_succeeded = all(_call_succeeded(a) for a in actual)
         scores = {
             "tool_match": tool_match,
             "args_match": args_match,
             "result_match": result_match,
+            "tool_succeeded": tool_succeeded,
             "completed": result.completed,
         }
 

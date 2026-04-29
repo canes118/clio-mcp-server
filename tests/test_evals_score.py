@@ -93,6 +93,7 @@ def test_empty_turns_yields_all_false() -> None:
         "tool_match": False,
         "args_match": False,
         "result_match": False,
+        "tool_succeeded": False,
         "completed": False,
     }
     assert result.scores == scores
@@ -399,3 +400,103 @@ def test_single_step_one_element_list_regression() -> None:
     assert scores["args_match"] is True
     assert scores["result_match"] is True
     assert scores["completed"] is True
+
+
+def test_tool_succeeded_true_when_call_not_errored() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result={"isError": False, "content": []})])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is True
+
+
+def test_tool_succeeded_false_when_call_errored() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result={"isError": True, "content": []})])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+
+def test_tool_succeeded_true_when_is_error_key_missing() -> None:
+    # New semantics: absent isError is treated as success (matches MCP
+    # spec default of False), distinct from the old "missing is failure".
+    case = _case()
+    result = _result(turns=[_turn(tool_result={"content": []})])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is True
+
+
+def test_tool_succeeded_false_when_tool_result_is_not_a_dict() -> None:
+    case = _case()
+    result = _result(turns=[_turn(tool_result=None)])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+    result = _result(turns=[_turn(tool_result="some string")])
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+
+def test_tool_succeeded_requires_all_turns_to_succeed() -> None:
+    # Multi-step semantics: one errored call in the trajectory fails the column.
+    case = _case(
+        expected_calls=[
+            ExpectedCall(tool="get_matter", args_subset={"matter_id": 1}),
+            ExpectedCall(tool="get_contact", args_subset={"contact_id": 2}),
+        ]
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="get_matter",
+                args={"matter_id": 1},
+                tool_result={"isError": False, "content": []},
+            ),
+            _turn(
+                name="get_contact",
+                args={"contact_id": 2},
+                tool_result={"isError": True, "content": []},
+            ),
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is False
+
+
+def test_tool_succeeded_passes_when_all_turns_succeed() -> None:
+    # Counterpart to the all-turns failure case: all clean calls aggregate to True.
+    case = _case(
+        expected_calls=[
+            ExpectedCall(tool="get_matter", args_subset={"matter_id": 1}),
+            ExpectedCall(tool="get_contact", args_subset={"contact_id": 2}),
+        ]
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="get_matter",
+                args={"matter_id": 1},
+                tool_result={"isError": False, "content": []},
+            ),
+            _turn(
+                name="get_contact",
+                args={"contact_id": 2},
+                tool_result={"isError": False, "content": []},
+            ),
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_succeeded"] is True
