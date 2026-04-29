@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 
-from evals.cases import CASES, CaseResult, TestCase, TurnRecord
+from evals.cases import CASES, CaseResult, ExpectedCall, TestCase, TurnRecord
 from evals.scoring import score
 
 load_dotenv()
@@ -210,13 +210,25 @@ def persist_run(
     return path
 
 
-def _print_summary(results: list[CaseResult]) -> None:
-    """Print a plain-text summary table for a list of scored results."""
+def _format_trajectory(turns: list[TurnRecord]) -> str:
+    """Render a trajectory as ``tool_name(args)`` calls joined with ``, ``."""
+    parts = [f"{t.tool_name}({json.dumps(t.tool_args, sort_keys=True)})" for t in turns]
+    return ", ".join(parts) if parts else "<no calls>"
+
+
+def _print_summary(results: list[CaseResult], cases: list[TestCase]) -> None:
+    """Print a plain-text summary table for a list of scored results.
+
+    For any case with a failing column, the actual trajectory and the
+    expected calls are printed below the row so a reviewer can see what
+    the agent did vs what was expected without opening the run JSON.
+    """
     header = (
         f"{'CASE':<40}{'TOOL':<8}{'ARGS':<8}{'RESULT':<8}"
         f"{'DONE':<8}{'ITER':<8}{'TIME_MS'}"
     )
     print(header)
+    cases_by_name = {c.name: c for c in cases}
     for r in results:
         tool = "PASS" if r.scores.get("tool_match") else "FAIL"
         args_col = "PASS" if r.scores.get("args_match") else "FAIL"
@@ -226,6 +238,18 @@ def _print_summary(results: list[CaseResult]) -> None:
             f"{r.case_name:<40}{tool:<8}{args_col:<8}{result_col:<8}{done:<8}"
             f"{r.iterations:<8}{r.wall_time_ms:.1f}"
         )
+        if "FAIL" in (tool, args_col, result_col, done):
+            case = cases_by_name.get(r.case_name)
+            expected_repr = (
+                ", ".join(
+                    f"{e.tool}({json.dumps(e.args_subset, sort_keys=True)})"
+                    for e in case.expected_calls
+                )
+                if case is not None
+                else "<unknown case>"
+            )
+            print(f"  expected: {expected_repr}")
+            print(f"  actual:   {_format_trajectory(r.turns)}")
 
 
 async def main() -> None:
@@ -236,7 +260,7 @@ async def main() -> None:
         help=(
             "Ad-hoc prompt override. If omitted, runs the committed CASES "
             "list from evals/cases.py. Ad-hoc runs cannot satisfy the "
-            "scorer (empty expected_tool) and are intended for exploration."
+            "scorer (placeholder expected call) and are intended for exploration."
         ),
     )
     args = parser.parse_args()
@@ -248,8 +272,7 @@ async def main() -> None:
             TestCase(
                 name="adhoc",
                 query=args.query,
-                expected_tool="",
-                expected_args_subset={},
+                expected_calls=[ExpectedCall(tool="")],
             )
         ]
     else:
@@ -273,7 +296,7 @@ async def main() -> None:
             score(case, result)
             results.append(result)
 
-    _print_summary(results)
+    _print_summary(results, cases)
     path = persist_run(results, RUNS_DIR, MODEL, started_at)
     print(f"Run persisted to: {path}")
 

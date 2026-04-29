@@ -1,28 +1,33 @@
-"""Unit tests for evals.harness.score.
+"""Unit tests for evals.scoring.score.
 
 score() is the one piece of interpretation logic in the harness; the
-subset-match semantics on expected_args_subset are easy to break
-accidentally during a later "simplify" pass, so they are pinned here.
+subset-match semantics on args_subset and the positional trajectory
+shape check are easy to break accidentally during a later "simplify"
+pass, so they are pinned here.
 """
 
 from typing import Any
 
-from evals.cases import CaseResult, TestCase, TurnRecord
+from evals.cases import CaseResult, ExpectedCall, TestCase, TurnRecord
 from evals.scoring import score
 
 
 def _case(
-    expected_tool: str = "search_matters",
+    expected_calls: list[ExpectedCall] | None = None,
+    *,
+    tool: str = "search_matters",
     subset: dict[str, Any] | None = None,
     non_null_fields: list[str] | None = None,
 ) -> TestCase:
-    return TestCase(
-        name="t",
-        query="q",
-        expected_tool=expected_tool,
-        expected_args_subset=subset or {},
-        expected_non_null_fields=non_null_fields or [],
-    )
+    if expected_calls is None:
+        expected_calls = [
+            ExpectedCall(
+                tool=tool,
+                args_subset=subset or {},
+                non_null_fields=non_null_fields or [],
+            )
+        ]
+    return TestCase(name="t", query="q", expected_calls=expected_calls)
 
 
 def _dict_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -88,14 +93,13 @@ def test_empty_turns_yields_all_false() -> None:
         "tool_match": False,
         "args_match": False,
         "result_match": False,
-        "tool_succeeded": False,
         "completed": False,
     }
     assert result.scores == scores
 
 
 def test_correct_tool_and_exact_args_passes() -> None:
-    case = _case(expected_tool="search_matters", subset={"query": "Acme"})
+    case = _case(tool="search_matters", subset={"query": "Acme"})
     result = _result(turns=[_turn(name="search_matters", args={"query": "Acme"})])
 
     scores = score(case, result)
@@ -136,7 +140,7 @@ def test_mismatched_value_for_expected_key_fails_args_match() -> None:
 
 
 def test_wrong_tool_fails_tool_match() -> None:
-    case = _case(expected_tool="search_matters", subset={"query": "Acme"})
+    case = _case(tool="search_matters", subset={"query": "Acme"})
     result = _result(turns=[_turn(name="search_contacts", args={"query": "Acme"})])
 
     scores = score(case, result)
@@ -164,7 +168,7 @@ def test_score_mutates_result_scores_in_place() -> None:
 
 
 def test_empty_expected_subset_matches_any_args() -> None:
-    case = _case(expected_tool="search_matters", subset={})
+    case = _case(tool="search_matters", subset={})
     result = _result(turns=[_turn(args={"query": "Acme"})])
 
     scores = score(case, result)
@@ -172,65 +176,9 @@ def test_empty_expected_subset_matches_any_args() -> None:
     assert scores["args_match"] is True
 
 
-def test_tool_succeeded_true_when_first_turn_not_errored() -> None:
-    case = _case()
-    result = _result(turns=[_turn(tool_result={"isError": False, "content": []})])
-
-    scores = score(case, result)
-
-    assert scores["tool_succeeded"] is True
-
-
-def test_tool_succeeded_false_when_first_turn_errored() -> None:
-    case = _case()
-    result = _result(turns=[_turn(tool_result={"isError": True, "content": []})])
-
-    scores = score(case, result)
-
-    assert scores["tool_succeeded"] is False
-
-
-def test_tool_succeeded_false_when_is_error_key_missing() -> None:
-    case = _case()
-    result = _result(turns=[_turn(tool_result={"content": []})])
-
-    scores = score(case, result)
-
-    assert scores["tool_succeeded"] is False
-
-
-def test_tool_succeeded_false_when_tool_result_is_not_a_dict() -> None:
-    case = _case()
-    result = _result(turns=[_turn(tool_result=None)])
-
-    scores = score(case, result)
-
-    assert scores["tool_succeeded"] is False
-
-    result = _result(turns=[_turn(tool_result="some string")])
-
-    scores = score(case, result)
-
-    assert scores["tool_succeeded"] is False
-
-
-def test_tool_succeeded_only_considers_first_turn() -> None:
-    case = _case()
-    result = _result(
-        turns=[
-            _turn(tool_result={"isError": True, "content": []}),
-            _turn(tool_result={"isError": False, "content": []}),
-        ],
-    )
-
-    scores = score(case, result)
-
-    assert scores["tool_succeeded"] is False
-
-
 def test_result_match_passes_when_all_listed_fields_non_null() -> None:
     case = _case(
-        expected_tool="get_matter",
+        tool="get_matter",
         non_null_fields=["description", "status"],
     )
     result = _result(
@@ -251,7 +199,7 @@ def test_result_match_passes_when_all_listed_fields_non_null() -> None:
 
 def test_result_match_fails_when_listed_field_is_null() -> None:
     case = _case(
-        expected_tool="get_matter",
+        tool="get_matter",
         non_null_fields=["description", "status"],
     )
     result = _result(
@@ -272,7 +220,7 @@ def test_result_match_fails_when_listed_field_is_null() -> None:
 
 def test_result_match_fails_when_listed_field_is_absent() -> None:
     case = _case(
-        expected_tool="get_matter",
+        tool="get_matter",
         non_null_fields=["description", "status"],
     )
     result = _result(
@@ -290,7 +238,7 @@ def test_result_match_fails_when_listed_field_is_absent() -> None:
 
 
 def test_result_match_vacuous_with_empty_expected_fields() -> None:
-    case = _case(expected_tool="search_matters", non_null_fields=[])
+    case = _case(tool="search_matters", non_null_fields=[])
     result = _result(
         turns=[
             _turn(
@@ -308,26 +256,7 @@ def test_result_match_vacuous_with_empty_expected_fields() -> None:
 def test_result_match_fails_for_list_payload_with_non_empty_expected() -> None:
     # Misconfigured: list-shape result paired with field-level expectations.
     case = _case(
-        expected_tool="search_matters",
-        non_null_fields=["description"],
-    )
-    result = _result(
-        turns=[
-            _turn(
-                name="search_matters",
-                tool_result=_list_payload([{"description": "Acme"}]),
-            )
-        ]
-    )
-
-    scores = score(case, result)
-
-    assert scores["result_match"] is False
-
-
-def test_result_match_fails_when_expected_tool_was_not_called() -> None:
-    case = _case(
-        expected_tool="get_matter",
+        tool="search_matters",
         non_null_fields=["description"],
     )
     result = _result(
@@ -347,7 +276,7 @@ def test_result_match_fails_when_expected_tool_was_not_called() -> None:
 def test_result_match_unwraps_fastmcp_wrapped_dict() -> None:
     # Discriminated unions (e.g. Contact) come back wrapped as {"result": <dict>}.
     case = _case(
-        expected_tool="get_contact",
+        tool="get_contact",
         non_null_fields=["first_name", "last_name"],
     )
     wrapped = {
@@ -365,3 +294,108 @@ def test_result_match_unwraps_fastmcp_wrapped_dict() -> None:
     scores = score(case, result)
 
     assert scores["result_match"] is True
+
+
+def test_multi_step_all_pairs_match() -> None:
+    case = _case(
+        expected_calls=[
+            ExpectedCall(
+                tool="get_matter",
+                args_subset={"matter_id": 1},
+                non_null_fields=["description"],
+            ),
+            ExpectedCall(
+                tool="get_contact",
+                args_subset={"contact_id": 2},
+                non_null_fields=["name"],
+            ),
+        ]
+    )
+    result = _result(
+        turns=[
+            _turn(
+                name="get_matter",
+                args={"matter_id": 1},
+                tool_result=_dict_payload({"description": "Acme Lend"}),
+            ),
+            _turn(
+                name="get_contact",
+                args={"contact_id": 2},
+                tool_result=_dict_payload({"name": "Acme"}),
+            ),
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_match"] is True
+    assert scores["args_match"] is True
+    assert scores["result_match"] is True
+
+
+def test_length_mismatch_fails_tool_args_and_result() -> None:
+    # Expected 2 calls, agent made 3 — trajectory shape itself is wrong.
+    case = _case(
+        expected_calls=[
+            ExpectedCall(tool="get_matter", args_subset={"matter_id": 1}),
+            ExpectedCall(tool="get_contact", args_subset={"contact_id": 2}),
+        ]
+    )
+    result = _result(
+        turns=[
+            _turn(name="search_matters", args={"query": "Acme"}),
+            _turn(name="get_matter", args={"matter_id": 1}),
+            _turn(name="get_contact", args={"contact_id": 2}),
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_match"] is False
+    assert scores["args_match"] is False
+    assert scores["result_match"] is False
+
+
+def test_multi_step_first_pair_matches_second_args_diverge() -> None:
+    # Trajectory shape is right (TOOL passes), but call 2's args are wrong.
+    case = _case(
+        expected_calls=[
+            ExpectedCall(tool="get_matter", args_subset={"matter_id": 1}),
+            ExpectedCall(tool="get_contact", args_subset={"contact_id": 2}),
+        ]
+    )
+    result = _result(
+        turns=[
+            _turn(name="get_matter", args={"matter_id": 1}),
+            _turn(name="get_contact", args={"contact_id": 999}),
+        ]
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_match"] is True
+    assert scores["args_match"] is False
+
+
+def test_single_step_one_element_list_regression() -> None:
+    # The migrated single-step cases must still score correctly.
+    case = TestCase(
+        name="t",
+        query="q",
+        expected_calls=[
+            ExpectedCall(
+                tool="search_matters",
+                args_subset={"query": "Acme"},
+            )
+        ],
+    )
+    result = _result(
+        turns=[_turn(name="search_matters", args={"query": "Acme"})]
+    )
+
+    scores = score(case, result)
+
+    assert scores["tool_match"] is True
+    assert scores["args_match"] is True
+    assert scores["result_match"] is True
+    assert scores["completed"] is True
