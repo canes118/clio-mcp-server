@@ -9,6 +9,13 @@ repos:
         always_run: true
         stages: [pre-commit]
 
+      - id: ruff
+        name: ruff check (uv run ruff)
+        entry: uv run ruff check .
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
       - id: block-client-names
         name: Block client names from denylist
         entry: scripts/check_client_names.py
